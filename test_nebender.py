@@ -10,6 +10,7 @@ import sounddevice as sd
 import argparse
 import requests, time, sys, json
 import subprocess
+import soundfile as sf
 
 MIC_GAIN = 20
 
@@ -18,7 +19,7 @@ def callback(indata, frames, time, status):
     loop.call_soon_threadsafe(audio_queue.put_nowait, bytes(indata))
 
 def infer_answer(question):
-    nebender_url = "http://192.168.87.177:8008"
+    nebender_url = "http://192.168.89.177:8008"
     headers = {
         'Content-Type': 'application/json',
     }
@@ -45,7 +46,7 @@ def read_subscription_key():
     service_region = "northeurope"
 
     try:
-        with open('subscription-'+ service_region + '.key') as key_file:
+        with open('model/subscription-'+ service_region + '.key') as key_file:
                 subscription_key = key_file.read().rstrip('\n\r')
     except:
         print("Error reading subscription key file!")
@@ -96,10 +97,15 @@ def azure_tts(sentence):
 
     response = requests.post(constructed_url, headers=headers, data=body)
     if response.status_code == 200:
-        with open('/dev/shm/tts.wav', 'wb') as audio:
+        # wav_path = '/dev/shm/tts.wav'
+        wav_path = '/home/sindar/mnt/tts.wav'
+        with open(wav_path, 'wb') as audio:
             audio.write(response.content)
             mic_set(0)
-            play_wav('/dev/shm/tts.wav')
+            # play_wav('/dev/shm/tts.wav')
+            f = sf.SoundFile(wav_path)
+            delay = (len(f) / f.samplerate)
+            time.sleep(delay + 1) #подождём пока проиграется файл
             mic_set(MIC_GAIN)
             # print("\nStatus code: " + str(response.status_code) + "\nYour TTS is ready for playback.\n")
     else:
@@ -107,7 +113,7 @@ def azure_tts(sentence):
 
 def flite_tts(sentence):
     mic_set(0)
-    tts_exe = 'flite -voice zk_us_bender.flitevox --setf duration_stretch=1.25 "' + sentence + '"'
+    tts_exe = 'flite -voice ./model/zk_us_bender.flitevox --setf duration_stretch=1.25 "' + sentence + '"'
     tts_proc = subprocess.Popen(["%s" % tts_exe], shell=True, stdout=subprocess.PIPE)
     code = tts_proc.wait()
     mic_set(MIC_GAIN)
