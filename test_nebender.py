@@ -101,12 +101,10 @@ def azure_tts(sentence):
         wav_path = '/home/sindar/mnt/tts.wav'
         with open(wav_path, 'wb') as audio:
             audio.write(response.content)
-            mic_set(0)
             # play_wav('/dev/shm/tts.wav')
             f = sf.SoundFile(wav_path)
             delay = (len(f) / f.samplerate)
             time.sleep(delay + 1) #подождём пока проиграется файл
-            mic_set(MIC_GAIN)
             # print("\nStatus code: " + str(response.status_code) + "\nYour TTS is ready for playback.\n")
     else:
         print("\nStatus code: " + str(response.status_code) + "\nSomething went wrong. Check your subscription key and headers.\n")
@@ -190,7 +188,9 @@ async def vosk_recognize_file(uri):
                     answer = infer_answer(recvd['text']) 
                     if answer != None:
                         # flite_tts(answer)
+                        mic_set(0)
                         azure_tts(answer)
+                        mic_set(MIC_GAIN)
                         await websocket.send('{"eof" : 1}')
                         # print (await websocket.recv())
                         break
@@ -250,12 +250,15 @@ async def main():
         # Azure STT works only on x86
         try:
             utt = await azure_stt(subscription_key)
+            mic_set(0)
             answer = infer_answer(utt)
             if answer != None:
                 azure_tts(answer)
                 # flite_tts(answer)
         except:
             print("got exception")
+        finally:
+            mic_set(MIC_GAIN)
 
         # if 'bender' in get_kw(wake_word_proc):
         #     # await vosk_recognize_mic('ws://192.168.87.177:2700', wake_word_pid)
